@@ -1,0 +1,127 @@
+Script SQL de création
+
+Le script suivant présente la création des tables et des contraintes d'intégrité référentielle.
+
+1. Création de la table Region
+
+Cette table contient les informations territoriales utilisées pour rattacher les adresses aux différentes subdivisions géographiques.
+
+CREATE TABLE Region (
+    com_code_regions VARCHAR(20) NOT NULL,
+    regrgp_nom VARCHAR(100) NOT NULL,
+    reg_nom VARCHAR(100) NOT NULL,
+    aca_nom VARCHAR(100) NOT NULL,
+    dep_nom VARCHAR(100) NOT NULL,
+    com_nom VARCHAR(100) NOT NULL,
+    ze_id VARCHAR(20) NOT NULL,
+    dep_code VARCHAR(10) NOT NULL,
+    aca_code VARCHAR(10) NOT NULL,
+    reg_code CHAR(2) NOT NULL,
+    AUC_id VARCHAR(20) NOT NULL,
+    AUC_nom VARCHAR(100) NOT NULL,
+    Geolocalisation TEXT NOT NULL,
+    PRIMARY KEY (com_code_regions)
+);
+
+2. Création de la table assoc_region_commune
+
+Cette table assure le lien entre les codes territoriaux et les communes.
+
+CREATE TABLE assoc_region_commune (
+    cod_dep_com_assoc VARCHAR(20) NOT NULL,
+    Code_region CHAR(2) NOT NULL,
+    Code_departement VARCHAR(10) NOT NULL,
+    Code_canton CHAR(2),
+    Code_arrondissement CHAR(2),
+    com_code_regions_communes CHAR(10) NOT NULL,
+    Region_com_code VARCHAR(20) NOT NULL,
+    PRIMARY KEY (cod_dep_com_assoc)
+);
+
+3. Création de la table Communes
+
+Cette table contient les identifiants des communes, leur nom et les indicateurs de population.
+
+CREATE TABLE Communes (
+    cod_dep_com_communes VARCHAR(20) NOT NULL,
+    com_code_commune CHAR(10) NOT NULL,
+    COM VARCHAR(100) NOT NULL,
+    PMUN SMALLINT NOT NULL,
+    PCAP SMALLINT NOT NULL,
+    PTOT SMALLINT NOT NULL,
+    PRIMARY KEY (cod_dep_com_communes)
+);
+
+4. Création de la table Adresse
+
+Cette table contient les informations nécessaires à la localisation des transactions immobilières.
+
+CREATE TABLE Adresse (
+    Adresse VARCHAR(100) NOT NULL,
+    Commune VARCHAR(100) NOT NULL,
+    N_Voie SMALLINT,
+    B_T_Q CHAR(1),
+    Type_de_voie VARCHAR(50),
+    Code_voie VARCHAR(20) NOT NULL,
+    Voie VARCHAR(150) NOT NULL,
+    Code_postal VARCHAR(10) NOT NULL,
+    Code_commune CHAR(10) NOT NULL,
+    com_code_adresse VARCHAR(20) NOT NULL,
+    PRIMARY KEY (Adresse)
+);
+
+5. Création de la table Ventes
+
+Cette table constitue le cœur de la base de données. Elle regroupe les informations relatives aux transactions et aux caractéristiques des biens immobiliers.
+
+CREATE TABLE Ventes (
+    N_ventes INT AUTO_INCREMENT NOT NULL,
+    Adresse VARCHAR(100) NOT NULL,
+    Date_mutation DATE NOT NULL,
+    Valeur_fonciere DECIMAL(15, 2) NOT NULL,
+    N_dispositions TINYINT NOT NULL,
+    N_plans SMALLINT NOT NULL,
+    premier_lot VARCHAR(50) NOT NULL,
+    Section VARCHAR(20),
+    Surface_Carrez_1_lot DECIMAL(10, 2) NOT NULL,
+    Nb_lots TINYINT NOT NULL,
+    Type_local VARCHAR(50) NOT NULL,
+    Surface_batie SMALLINT NOT NULL,
+    Nb_pieces_principales TINYINT NOT NULL,
+    Nature_culture VARCHAR(100),
+    Nature_culture_speciale VARCHAR(100),
+    Surface_terrain SMALLINT NOT NULL,
+    PRIMARY KEY (N_ventes, Adresse)
+);
+
+6. Définition des clés étrangères
+
+Les contraintes suivantes assurent les liens entre les différentes tables.
+
+ALTER TABLE Adresse
+ADD CONSTRAINT adresse_region_fk
+FOREIGN KEY (com_code_adresse)
+REFERENCES Region (com_code_regions)
+ON DELETE NO ACTION
+ON UPDATE NO ACTION;
+
+ALTER TABLE assoc_region_commune
+ADD CONSTRAINT region_assoc_region_commune_fk
+FOREIGN KEY (Region_com_code)
+REFERENCES Region (com_code_regions)
+ON DELETE NO ACTION
+ON UPDATE NO ACTION;
+
+ALTER TABLE Communes
+ADD CONSTRAINT assoc_region_commune_communes_fk
+FOREIGN KEY (cod_dep_com_communes)
+REFERENCES assoc_region_commune (cod_dep_com_assoc)
+ON DELETE NO ACTION
+ON UPDATE NO ACTION;
+
+ALTER TABLE Ventes
+ADD CONSTRAINT adresse_ventes_fk
+FOREIGN KEY (Adresse)
+REFERENCES Adresse (Adresse)
+ON DELETE NO ACTION
+ON UPDATE NO ACTION;
