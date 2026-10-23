@@ -1,0 +1,278 @@
+1. Nombre de ventes au premier semestre 2020
+
+Objectif : compter les ventes distinctes enregistrées entre le 1er janvier et le 30 juin 2020.
+
+SELECT
+    COUNT(DISTINCT N_ventes) AS Nb_ventes_premier_semestre_2020
+FROM ventes
+WHERE Date_mutation >= '2020-01-01'
+  AND Date_mutation < '2020-07-01';
+
+2. Nombre de ventes par région au premier semestre 2020
+
+Objectif : comparer le volume des ventes entre les régions.
+
+SELECT
+    COUNT(DISTINCT v.N_ventes) AS Nb_ventes,
+    r.reg_nom AS Region
+FROM ventes v
+JOIN adress a
+    ON v.Adresse_ventes = a.Adresse
+JOIN region r
+    ON a.code_dep_commune_adresse = r.com_code_regions
+WHERE v.Date_mutation >= '2020-01-01'
+  AND v.Date_mutation < '2020-07-01'
+GROUP BY r.reg_nom
+ORDER BY Nb_ventes DESC;
+
+3. Répartition des ventes selon le nombre de pièces
+
+Objectif : mesurer la part des ventes en fonction du nombre de pièces principales.
+
+SELECT
+    Nb_pieces_principales AS Nb_pieces,
+    COUNT(*) AS Nb_ventes,
+    ROUND(
+        100.0 * COUNT(*) /
+        SUM(COUNT(*)) OVER (),
+        2
+    ) AS Pourcentage
+FROM ventes
+WHERE Nb_pieces_principales > 0
+GROUP BY Nb_pieces_principales
+ORDER BY Nb_ventes DESC;
+
+Point de vigilance : les biens renseignés avec zéro pièce peuvent correspondre à des données manquantes, à des caractéristiques particulières ou à des anomalies. Ils sont exclus ici pour faciliter l'interprétation de la répartition.
+
+4. Les 10 départements au prix moyen au mètre carré le plus élevé
+
+Objectif : comparer les prix immobiliers entre départements.
+
+SELECT
+    r.dep_nom AS Departement,
+    ROUND(
+        AVG(v.Valeur_fonciere / NULLIF(v.Surface_batie, 0)),
+        2
+    ) AS Prix_m2_moyen
+FROM ventes v
+JOIN adress a
+    ON v.Adresse_ventes = a.Adresse
+JOIN region r
+    ON a.code_dep_commune_adresse = r.com_code_regions
+WHERE v.Surface_batie > 0
+  AND v.Valeur_fonciere IS NOT NULL
+GROUP BY r.dep_nom
+ORDER BY Prix_m2_moyen DESC
+LIMIT 10;
+
+Point méthodologique : le prix au mètre carré est calculé pour chaque transaction, puis moyenné. Cette approche diffère du rapport entre la valeur foncière moyenne et la surface moyenne. 
+
+5. Prix moyen au mètre carré des maisons en Île-de-France
+
+Objectif : estimer le prix moyen au mètre carré des maisons vendues dans cette région.
+
+SELECT
+    ROUND(
+        AVG(v.Valeur_fonciere / NULLIF(v.Surface_batie, 0)),
+        2
+    ) AS Prix_m2_moyen
+FROM ventes v
+JOIN adress a
+    ON v.Adresse_ventes = a.Adresse
+JOIN region r
+    ON a.code_dep_commune_adresse = r.com_code_regions
+WHERE r.reg_nom = 'Ile-de-France'
+  AND v.Type_local = 'Maison'
+  AND v.Surface_batie > 0
+  AND v.Valeur_fonciere IS NOT NULL;
+
+6. Les 10 appartements les plus chers
+
+Objectif : identifier les appartements dont la valeur foncière est la plus élevée, avec leur région, leur surface et leur adresse.
+
+SELECT
+    v.Valeur_fonciere AS Prix,
+    r.reg_nom AS Region,
+    v.Surface_batie AS Surface_m2,
+    v.Adresse_ventes AS Adresse
+FROM ventes v
+JOIN adress a
+    ON v.Adresse_ventes = a.Adresse
+JOIN region r
+    ON a.code_dep_commune_adresse = r.com_code_regions
+WHERE v.Type_local = 'Appartement'
+  AND v.Valeur_fonciere IS NOT NULL
+ORDER BY v.Valeur_fonciere DESC
+LIMIT 10;
+
+7. Évolution du nombre de ventes entre les deux premiers trimestres de 2020
+
+Objectif : mesurer l'évolution du volume des transactions entre le premier et le deuxième trimestre.
+
+WITH Ventes_trimestres AS (
+    SELECT
+        COUNT(DISTINCT CASE
+            WHEN Date_mutation >= '2020-01-01'
+             AND Date_mutation < '2020-04-01'
+            THEN N_ventes
+        END) AS Nb_ventes_T1,
+
+        COUNT(DISTINCT CASE
+            WHEN Date_mutation >= '2020-04-01'
+             AND Date_mutation < '2020-07-01'
+            THEN N_ventes
+        END) AS Nb_ventes_T2
+    FROM ventes
+)
+SELECT
+    Nb_ventes_T1,
+    Nb_ventes_T2,
+    ROUND(
+        100.0 * (Nb_ventes_T2 - Nb_ventes_T1)
+        / NULLIF(Nb_ventes_T1, 0),
+        2
+    ) AS Taux_evolution_pourcent
+FROM Ventes_trimestres;
+
+8. Classement des régions selon le prix au mètre carré des appartements de plus de quatre pièces
+
+Objectif : comparer les prix au mètre carré des appartements de grande taille.
+
+SELECT
+    r.reg_nom AS Region,
+    ROUND(
+        AVG(v.Valeur_fonciere / NULLIF(v.Surface_batie, 0)),
+        2
+    ) AS Prix_m2_moyen
+FROM ventes v
+JOIN adress a
+    ON v.Adresse_ventes = a.Adresse
+JOIN region r
+    ON a.code_dep_commune_adresse = r.com_code_regions
+WHERE v.Type_local = 'Appartement'
+  AND v.Nb_pieces_principales > 4
+  AND v.Surface_batie > 0
+  AND v.Valeur_fonciere IS NOT NULL
+GROUP BY r.reg_nom
+ORDER BY Prix_m2_moyen DESC;
+
+9. Communes ayant enregistré au moins 50 ventes au premier trimestre 2020
+
+Objectif : identifier les communes présentant un volume important de transactions au premier trimestre.
+SELECT
+    c.COM AS Commune,
+    COUNT(DISTINCT v.N_ventes) AS Nb_ventes
+FROM ventes v
+JOIN adress a
+    ON v.Adresse_ventes = a.Adresse
+JOIN communes c
+    ON a.code_dep_commune_adresse = c.cod_dep_com_communes
+WHERE v.Date_mutation >= '2020-01-01'
+  AND v.Date_mutation < '2020-04-01'
+GROUP BY c.COM
+HAVING COUNT(DISTINCT v.N_ventes) >= 50
+ORDER BY Nb_ventes DESC;
+
+10. Différence de prix au mètre carré entre les appartements de deux et trois pièces
+
+Objectif : comparer le prix moyen au mètre carré de ces deux catégories d'appartements.
+
+WITH Prix_par_categorie AS (
+    SELECT
+        Nb_pieces_principales AS Nb_pieces,
+        AVG(Valeur_fonciere / NULLIF(Surface_batie, 0))
+            AS Prix_m2_moyen
+    FROM ventes
+    WHERE Type_local = 'Appartement'
+      AND Nb_pieces_principales IN (2, 3)
+      AND Surface_batie > 0
+      AND Valeur_fonciere IS NOT NULL
+    GROUP BY Nb_pieces_principales
+)
+SELECT
+    MAX(CASE
+        WHEN Nb_pieces = 2 THEN Prix_m2_moyen
+    END) AS Prix_m2_2_pieces,
+
+    MAX(CASE
+        WHEN Nb_pieces = 3 THEN Prix_m2_moyen
+    END) AS Prix_m2_3_pieces,
+
+    ROUND(
+        100.0 * (
+            MAX(CASE
+                WHEN Nb_pieces = 3 THEN Prix_m2_moyen
+            END)
+            -
+            MAX(CASE
+                WHEN Nb_pieces = 2 THEN Prix_m2_moyen
+            END)
+        )
+        / NULLIF(
+            MAX(CASE
+                WHEN Nb_pieces = 2 THEN Prix_m2_moyen
+            END),
+            0
+        ),
+        2
+    ) AS Difference_pourcentage
+FROM Prix_par_categorie;
+
+
+11. Top 3 des communes par département selon la valeur foncière moyenne
+
+Objectif : identifier les trois communes ayant les valeurs foncières moyennes les plus élevées dans les départements 06, 13, 33, 59 et 69.
+
+WITH Moyennes AS (
+    SELECT
+        r.dep_code AS Departement,
+        c.COM AS Commune,
+        ROUND(AVG(v.Valeur_fonciere), 2)
+            AS Moyenne_valeurs_foncieres,
+        ROW_NUMBER() OVER (
+            PARTITION BY r.dep_code
+            ORDER BY AVG(v.Valeur_fonciere) DESC
+        ) AS Rang
+    FROM ventes v
+    JOIN adress a
+        ON v.Adresse_ventes = a.Adresse
+    JOIN region r
+        ON a.code_dep_commune_adresse = r.com_code_regions
+    JOIN communes c
+        ON a.code_dep_commune_adresse = c.cod_dep_com_communes
+    WHERE r.dep_code IN ('06', '13', '33', '59', '69')
+      AND v.Valeur_fonciere IS NOT NULL
+    GROUP BY r.dep_code, c.COM
+)
+SELECT
+    Departement,
+    Commune,
+    Moyenne_valeurs_foncieres
+FROM Moyennes
+WHERE Rang <= 3
+ORDER BY
+    Departement,
+    Moyenne_valeurs_foncieres DESC;
+Cette requête utilise une fonction de fenêtrage (ROW_NUMBER()) pour classer les communes à l'intérieur de chaque département.
+Point de vigilance : la valeur foncière moyenne dépend notamment du nombre et du type de transactions enregistrées dans chaque commune. Elle ne représente pas nécessairement le prix moyen d'un logement comparable.
+12. Les 20 communes ayant le plus de transactions pour 1 000 habitants
+Objectif : comparer le dynamisme immobilier des communes de plus de 10 000 habitants en rapportant le nombre de transactions à leur population totale.
+SELECT
+    c.COM AS Commune,
+    c.PTOT AS Population_totale,
+    COUNT(DISTINCT v.N_ventes) AS Nb_ventes,
+    ROUND(
+        1000.0 * COUNT(DISTINCT v.N_ventes)
+        / NULLIF(c.PTOT, 0),
+        2
+    ) AS Transactions_pour_mille
+FROM communes c
+JOIN adress a
+    ON c.cod_dep_com_communes = a.code_dep_commune_adresse
+JOIN ventes v
+    ON v.Adresse_ventes = a.Adresse
+WHERE c.PTOT > 10000
+GROUP BY c.COM, c.PTOT
+ORDER BY Transactions_pour_mille DESC
+LIMIT 20;
+
