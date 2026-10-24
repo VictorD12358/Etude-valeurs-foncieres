@@ -1,4 +1,4 @@
-# Créer-et-exploiter-une-BDD-immobiliére-avec-SQL
+# Etude des valeurs foncières via une base de données SQL
 
 SQL · MySQL · Modélisation · Formation
 
